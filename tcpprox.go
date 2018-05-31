@@ -33,6 +33,8 @@ type Config struct {
 	CertFile   string ""
 	BlacklistRegex []string ""
 	Blacklist []*regexp.Regexp
+	WhitelistRegex []string ""
+	Whitelist []*regexp.Regexp
 }
 
 var config Config
@@ -119,6 +121,21 @@ func handleConnection(conn net.Conn, isTLS bool) {
 					break
 				}
 			}
+			if config.Whitelist != nil {
+				message := string(data[:n])
+				match := false
+				for _, matcher := range config.Whitelist  {
+					if matcher.MatchString(message) {
+						fmt.Println("Matched Whitelist: ", matcher.String())
+						match = true
+						break
+					}
+				}
+				if !match {
+					fmt.Println("Not in Whitelist")
+					break
+				}
+			}
 			//fmt.Printf("From Client:\n%s\n",hex.EncodeToString(data[:n]))
 			connR.Write(data[:n])
 			_ = hex.Dump(data[:n])
@@ -178,7 +195,7 @@ func startListener(isTLS bool) {
 	conn.Close()
 }
 
-func setConfig(configFile string, localPort int, localHost, remoteHost string, certFile string, blackList string) {
+func setConfig(configFile string, localPort int, localHost, remoteHost string, certFile string, blackList string, whiteList string) {
 	if configFile != "" {
 		data, err := ioutil.ReadFile(configFile)
 		if err != nil {
@@ -229,6 +246,25 @@ func setConfig(configFile string, localPort int, localHost, remoteHost string, c
 			config.Blacklist[index] = compiledBlacklist
 		}
 	}
+	if whiteList != "" {
+		compiledWhitelist, err := regexp.Compile(whiteList)
+		if err != nil {
+			fmt.Println("[-] Not a valid Whitelist Regex: ", err)
+			os.Exit(1)
+		}
+		config.Whitelist = make([]*regexp.Regexp, 1)
+		config.Whitelist[0] = compiledWhitelist
+	} else if len(config.WhitelistRegex) > 0 {
+		config.Whitelist = make([]*regexp.Regexp, len(config.WhitelistRegex))
+		for index, regex := range config.WhitelistRegex {
+			compiledWhitelist, err := regexp.Compile(regex)
+			if err != nil {
+				fmt.Println("[-] Not a valid Whitelist Regex: ", err)
+				os.Exit(1)
+			}
+			config.Whitelist[index] = compiledWhitelist
+		}
+	}
 }
 
 func main() {
@@ -239,11 +275,12 @@ func main() {
 	tlsPtr := flag.Bool("s", false, "Create a TLS Proxy")
 	certFilePtr := flag.String("cert", "", "Use a specific certificate file")
 	blackListPtr:= flag.String("blacklist", "", "Blacklisting Regex")
+	whiteListPtr := flag.String("whitelist", "", "Whitelisting Regex")
 
 
 	flag.Parse()
 
-	setConfig(*configPtr, *localPort, *localHost, *remoteHostPtr, *certFilePtr, *blackListPtr)
+	setConfig(*configPtr, *localPort, *localHost, *remoteHostPtr, *certFilePtr, *blackListPtr, *whiteListPtr)
 
 	if config.Remotehost == "" {
 		fmt.Println("[x] Remote host required")
