@@ -7,5 +7,6 @@
             "Org":["Staaldraad"],
             "CommonName":"*.domain.com"
     },
-    "Certfile":""
+    "Certfile":"",
+    "BlacklistRegex":"http/1.1"
 }

@@ -31,6 +31,7 @@ type Config struct {
 	Localport  int
 	TLS        *TLS
 	CertFile   string ""
+	BlacklistRegex string ""
 	Blacklist *regexp.Regexp
 }
 
@@ -198,6 +199,14 @@ func setConfig(configFile string, localPort int, localHost, remoteHost string, c
 
 	if blackList != "" {
 		compiledBlacklist, err := regexp.Compile(blackList)
+		if err != nil {
+			fmt.Println("[-] Not a valid Blacklist Regex: ", err)
+			os.Exit(1)
+
+		}
+		config.Blacklist = compiledBlacklist
+	} else if config.BlacklistRegex != "" {
+		compiledBlacklist, err := regexp.Compile(config.BlacklistRegex)
 		if err != nil {
 			fmt.Println("[-] Not a valid Blacklist Regex: ", err)
 			os.Exit(1)
