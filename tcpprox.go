@@ -31,8 +31,8 @@ type Config struct {
 	Localport  int
 	TLS        *TLS
 	CertFile   string ""
-	BlacklistRegex string ""
-	Blacklist *regexp.Regexp
+	BlacklistRegex []string ""
+	Blacklist []*regexp.Regexp
 }
 
 var config Config
@@ -104,9 +104,20 @@ func handleConnection(conn net.Conn, isTLS bool) {
 		n, err := conn.Read(data)
 		if n > 0 {
 			fmt.Printf("From Client [%d]:\n%s\n", id, hex.Dump(data[:n]))
-			if config.Blacklist != nil && config.Blacklist.MatchString(string(data[:n])) {
-				fmt.Println("Matched Blacklist")
-				break
+
+			if config.Blacklist != nil {
+				message := string(data[:n])
+				match := false
+				for _, matcher := range config.Blacklist  {
+					if matcher.MatchString(message) {
+						fmt.Println("Matched Blacklist: ", matcher.String())
+						match = true
+						break
+					}
+				}
+				if match {
+					break
+				}
 			}
 			//fmt.Printf("From Client:\n%s\n",hex.EncodeToString(data[:n]))
 			connR.Write(data[:n])
@@ -204,15 +215,19 @@ func setConfig(configFile string, localPort int, localHost, remoteHost string, c
 			os.Exit(1)
 
 		}
-		config.Blacklist = compiledBlacklist
-	} else if config.BlacklistRegex != "" {
-		compiledBlacklist, err := regexp.Compile(config.BlacklistRegex)
-		if err != nil {
-			fmt.Println("[-] Not a valid Blacklist Regex: ", err)
-			os.Exit(1)
+		config.Blacklist = make([]*regexp.Regexp, 1)
+		config.Blacklist[0] = compiledBlacklist
+	} else if len(config.BlacklistRegex) > 0 {
+		config.Blacklist = make([]*regexp.Regexp, len(config.BlacklistRegex))
+		for index, regex := range config.BlacklistRegex {
+			compiledBlacklist, err := regexp.Compile(regex)
+			if err != nil {
+				fmt.Println("[-] Not a valid Blacklist Regex: ", err)
+				os.Exit(1)
 
+			}
+			config.Blacklist[index] = compiledBlacklist
 		}
-		config.Blacklist = compiledBlacklist
 	}
 }
 
@@ -224,6 +239,7 @@ func main() {
 	tlsPtr := flag.Bool("s", false, "Create a TLS Proxy")
 	certFilePtr := flag.String("cert", "", "Use a specific certificate file")
 	blackListPtr:= flag.String("blacklist", "", "Blacklisting Regex")
+
 
 	flag.Parse()
 

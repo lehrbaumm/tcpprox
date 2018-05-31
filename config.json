@@ -8,5 +8,5 @@
             "CommonName":"*.domain.com"
     },
     "Certfile":"",
-    "BlacklistRegex":"http/1.1"
+    "BlacklistRegex":["http/1.1", "localhost"]
 }
