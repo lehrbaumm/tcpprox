@@ -33,6 +33,7 @@ type Config struct {
 	CertFile   string ""
 	BlacklistRegex []string ""
 	Blacklist []*regexp.Regexp
+	WhitelistRegex []string ""
 	Whitelist []*regexp.Regexp
 }
 
@@ -253,6 +254,16 @@ func setConfig(configFile string, localPort int, localHost, remoteHost string, c
 		}
 		config.Whitelist = make([]*regexp.Regexp, 1)
 		config.Whitelist[0] = compiledWhitelist
+	} else if len(config.WhitelistRegex) > 0 {
+		config.Whitelist = make([]*regexp.Regexp, len(config.WhitelistRegex))
+		for index, regex := range config.WhitelistRegex {
+			compiledWhitelist, err := regexp.Compile(regex)
+			if err != nil {
+				fmt.Println("[-] Not a valid Whitelist Regex: ", err)
+				os.Exit(1)
+			}
+			config.Whitelist[index] = compiledWhitelist
+		}
 	}
 }
 
